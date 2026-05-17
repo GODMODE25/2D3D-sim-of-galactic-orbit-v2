@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galactic Orbit Simulation - Earth's Helical Path</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <button id="toggle-panel-btn">☰</button>
+    <div id="info">
+        <h3>Galactic Orbit Simulation</h3>
+
+        <div class="info-section">
+            <strong>Simulation Time:</strong> <span id="sim-time">0.00 million years</span>
+        </div>
+        <div class="info-section">
+            <strong>Distances:</strong>
+            <div style="margin-left: 10px;">
+                <div>Sun ↔ Sgr A*: <span id="dist-sun-sgr">0 ly</span></div>
+                <div>Earth ↔ Sun: <span id="dist-earth-sun">0 AU</span></div>
+                <div>Earth ↔ Sgr A*: <span id="dist-earth-sgr">0 ly</span></div>
+            </div>
+        </div>
+        <div class="info-section" style="font-size: 12px; opacity: 0.8;">
+            Use mouse to rotate • Scroll to zoom<br>
+            <div style="margin-top: 5px; margin-bottom: 5px;">GodMode (c) 2025</div>
+            Three.js r<span id="threejs-version"></span>
+        </div>
+    </div>
+        <div id="infocard" class="infocard hidden">
+            <button id="infocard-close" class="infocard-close-btn">&times;</button>
+            <h3 id="infocard-title"></h3>
+            <p id="infocard-description"></p>
+            <ul id="infocard-details" class="infocard-details">
+                <!-- Details will be populated by JS -->
+            </ul>
+        </div>
+        <script type="module" src="app.js"></script></body>
+</html>
