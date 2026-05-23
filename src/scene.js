@@ -16,6 +16,9 @@ export function initScene() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
 
   // CSS2D renderer for labels
   const labelRenderer = new CSS2DRenderer();
@@ -54,7 +57,7 @@ export function initScene() {
   const sunMaterial = new THREE.MeshStandardMaterial({
     color: 0xffaa00,
     emissive: 0xffaa00,
-    emissiveIntensity: 1.0,
+    emissiveIntensity: 1.45,
     metalness: 0.2
   });
   const sun = new THREE.Mesh(sunGeometry, sunMaterial);
@@ -64,6 +67,18 @@ export function initScene() {
   SUN_DATA.uuid = sun.uuid;
   sun.userData.info = SUN_DATA;
   scene.add(sun);
+
+  const sunGlowTexture = createGlowTexture(['rgba(255,245,160,1)', 'rgba(255,150,28,0.5)', 'rgba(255,90,0,0)']);
+  const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: sunGlowTexture,
+    color: 0xffcc66,
+    transparent: true,
+    opacity: 0.82,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  }));
+  sunGlow.scale.set(34, 34, 1);
+  sun.add(sunGlow);
 
   // Create planets array and their orbits
   const planets = [];
@@ -144,7 +159,7 @@ export function initScene() {
   });
 
   simulationControls.updateVisibilities();
-  simulationControls.setCameraPreset('Sun');
+  simulationControls.setCameraMode('Galactic Overview', { instant: true });
 
   // Resize handler
   function onWindowResize() {
@@ -188,17 +203,12 @@ export function initScene() {
 
     // Update camera following behavior if enabled
     if (typeof simulationControls !== 'undefined' && simulationControls) {
-      simulationControls.updateCameraFollow();
+      simulationControls.updateCameraFollow(deltaTime);
     }
 
     // Update visual effects (trail, labels, info panel)
     if (typeof visualEffects !== 'undefined' && visualEffects) {
       visualEffects.update(galacticOrbit);
-    }
-
-    // Reapply visibility settings (allows external triggers and ensures GUI state applied every frame)
-    if (typeof simulationControls !== 'undefined' && simulationControls && typeof simulationControls.updateVisibilities === 'function') {
-      simulationControls.updateVisibilities();
     }
 
     controls.update();
@@ -211,4 +221,18 @@ export function initScene() {
 
   // Earth now orbits the Sun, creating a tilted helical path as the Sun moves through the galaxy.
   return { scene, camera, renderer, sun, planets, controls, animate, galacticOrbit, planetOrbits, galacticPlaneGrid, axesHelper, simulationControls, visualEffects, labelRenderer };
+}
+
+function createGlowTexture(colorStops) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+  const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
+  colorStops.forEach((color, index) => {
+    gradient.addColorStop(index / (colorStops.length - 1), color);
+  });
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(canvas);
 }

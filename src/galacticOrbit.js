@@ -59,13 +59,13 @@ export class GalacticOrbit {
     const group = new THREE.Group();
 
     // Black hole sphere (slightly larger)
-    const blackHoleGeom = new THREE.SphereGeometry(5, 32, 32); // Increased size
+    const blackHoleGeom = new THREE.SphereGeometry(5, 32, 32);
     const blackHoleMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const blackHoleMesh = new THREE.Mesh(blackHoleGeom, blackHoleMat);
     group.add(blackHoleMesh);
 
     // Accretion disk (larger and brighter)
-    const diskGeom = new THREE.TorusGeometry(14, 5, 2, 100); // Doubled sizes
+    const diskGeom = new THREE.TorusGeometry(16, 4.8, 8, 160);
 
     // Procedural texture for the disk
     const canvas = document.createElement('canvas');
@@ -74,9 +74,9 @@ export class GalacticOrbit {
     const context = canvas.getContext('2d');
     const gradient = context.createRadialGradient(128, 128, 20, 128, 128, 128);
     // Adjusted colors for brighter appearance
-    gradient.addColorStop(0, 'rgba(255,200,100,1)'); // Brighter yellow
-    gradient.addColorStop(0.3, 'rgba(255,150,50,1)'); // Brighter orange
-    gradient.addColorStop(0.6, 'rgba(200,50,0,1)');  // Brighter red
+    gradient.addColorStop(0, 'rgba(255,235,160,1)');
+    gradient.addColorStop(0.28, 'rgba(255,135,36,1)');
+    gradient.addColorStop(0.62, 'rgba(190,35,255,0.72)');
     gradient.addColorStop(1, 'rgba(0,0,0,0)');
     context.fillStyle = gradient;
     context.fillRect(0, 0, 256, 256);
@@ -94,6 +94,21 @@ export class GalacticOrbit {
     const diskMesh = new THREE.Mesh(diskGeom, diskMat);
     diskMesh.rotation.x = Math.PI / 2;
     group.add(diskMesh);
+
+    const haloTexture = this._createRadialTexture([
+      'rgba(210,70,255,0.95)',
+      'rgba(255,146,46,0.42)',
+      'rgba(0,0,0,0)'
+    ]);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: haloTexture,
+      transparent: true,
+      opacity: 0.72,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    }));
+    halo.scale.set(95, 95, 1);
+    group.add(halo);
     
     group.position.set(0, 0, 0);
     this.scene.add(group);
@@ -102,9 +117,23 @@ export class GalacticOrbit {
     this.sagittariusA.userData.info = SGR_A_DATA;
 
     // Point light for glow (increased intensity)
-    const light = new THREE.PointLight(0xff88ff, 2.5, 3000); // Increased intensity and range
+    const light = new THREE.PointLight(0xff88ff, 3.2, 3000);
     light.position.set(0, 0, 0);
     this.scene.add(light);
+  }
+
+  _createRadialTexture(colorStops) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const context = canvas.getContext('2d');
+    const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
+    colorStops.forEach((color, index) => {
+      gradient.addColorStop(index / (colorStops.length - 1), color);
+    });
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 256, 256);
+    return new THREE.CanvasTexture(canvas);
   }
 
   _updateSunPosition() {

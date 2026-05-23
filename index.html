@@ -8,7 +8,19 @@
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <button id="toggle-panel-btn">☰</button>
+    <section id="launch-marquee" class="launch-marquee" aria-label="Simulation launch">
+        <div class="launch-content">
+            <p class="eyebrow">Milky Way Flight Sequence</p>
+            <h1>Galactic Orbit Simulation</h1>
+            <p class="launch-copy">Follow the Sun through the galaxy, watch the Solar System carve helical trails, and slip into cinematic mode when the controls fade away.</p>
+            <div class="launch-actions">
+                <button id="launch-btn" class="primary-btn">Start Simulation</button>
+                <button id="launch-cinematic-btn" class="secondary-btn">Start Cinematic</button>
+            </div>
+        </div>
+    </section>
+
+    <button id="toggle-panel-btn" class="icon-btn" title="Toggle HUD" aria-label="Toggle HUD">☰</button>
     <div id="info">
         <h3>Galactic Orbit Simulation</h3>
 
@@ -17,25 +29,81 @@
         </div>
         <div class="info-section">
             <strong>Distances:</strong>
-            <div style="margin-left: 10px;">
+            <div class="metric-list">
                 <div>Sun ↔ Sgr A*: <span id="dist-sun-sgr">0 ly</span></div>
                 <div>Earth ↔ Sun: <span id="dist-earth-sun">0 AU</span></div>
                 <div>Earth ↔ Sgr A*: <span id="dist-earth-sgr">0 ly</span></div>
             </div>
         </div>
-        <div class="info-section" style="font-size: 12px; opacity: 0.8;">
+        <div class="info-section info-help">
             Use mouse to rotate • Scroll to zoom<br>
-            <div style="margin-top: 5px; margin-bottom: 5px;">GodMode (c) 2025</div>
+            <div class="credit-line">GodMode (c) 2025</div>
             Three.js r<span id="threejs-version"></span>
         </div>
     </div>
-        <div id="infocard" class="infocard hidden">
-            <button id="infocard-close" class="infocard-close-btn">&times;</button>
-            <h3 id="infocard-title"></h3>
-            <p id="infocard-description"></p>
-            <ul id="infocard-details" class="infocard-details">
-                <!-- Details will be populated by JS -->
-            </ul>
+
+    <section id="hud" class="hud" aria-label="Simulation controls">
+        <div class="hud-header">
+            <div>
+                <p class="eyebrow">Cinematic Navigation</p>
+                <h2>Galactic Flight Deck</h2>
+            </div>
+            <button id="cinematic-btn" class="icon-btn" title="Cinematic mode" aria-label="Toggle cinematic mode">◐</button>
         </div>
-        <script type="module" src="app.js"></script></body>
+
+        <div class="hud-row">
+            <button id="play-pause-btn" class="primary-btn">Pause</button>
+            <button id="reset-btn" class="secondary-btn">Reset</button>
+        </div>
+
+        <label class="control-label" for="speed-slider">
+            Speed <span id="speed-readout">1.00x</span>
+        </label>
+        <input id="speed-slider" type="range" min="0" max="20" step="0.25" value="1">
+
+        <label class="control-label" for="camera-mode-select">Camera Mode</label>
+        <select id="camera-mode-select"></select>
+
+        <label class="control-label" for="target-select">Follow Target</label>
+        <select id="target-select"></select>
+
+        <div class="toggle-grid">
+            <label><input id="labels-toggle" type="checkbox"> Labels</label>
+            <label><input id="planet-trails-toggle" type="checkbox"> Planet Trails</label>
+            <label><input id="sun-trail-toggle" type="checkbox" checked> Sun Trail</label>
+            <label><input id="grid-toggle" type="checkbox" checked> Grid</label>
+            <label><input id="axes-toggle" type="checkbox"> Axes</label>
+        </div>
+
+        <div class="inactivity-grid">
+            <label>
+                HUD fade
+                <input id="hud-delay-input" type="number" min="1" max="60" step="1" value="7">
+            </label>
+            <label>
+                Cinema
+                <input id="cinematic-delay-input" type="number" min="2" max="90" step="1" value="10">
+            </label>
+        </div>
+
+        <div class="shortcut-strip">
+            <span>Space</span><span>R</span><span>H</span><span>1-5</span><span>T</span><span>L</span><span>C/Esc</span>
+        </div>
+    </section>
+
+    <div id="minimal-telemetry" class="minimal-telemetry hidden">
+        <span id="mini-time">0.00 Myr</span>
+        <span id="mini-mode">Galactic Overview</span>
+    </div>
+
+    <div id="infocard" class="infocard hidden">
+        <button id="infocard-close" class="infocard-close-btn" aria-label="Close inspector">&times;</button>
+        <p class="eyebrow">Object Inspector</p>
+        <h3 id="infocard-title"></h3>
+        <p id="infocard-description"></p>
+        <ul id="infocard-details" class="infocard-details"></ul>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
 </html>

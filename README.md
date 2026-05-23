@@ -2,6 +2,14 @@
 
 A 3D visualization of the solar system's helical paths as the Sun orbits Sagittarius A*, the supermassive black hole at the center of the Milky Way. The simulation now includes all 8 major planets and their tilted orbits.
 
+## Screenshots
+
+![Landing Page](screenshots/landing_page.png)
+*Landing Page*
+
+![Simulation View](screenshots/sim.png)
+*Simulation View*
+
 ## Installation
 
 ```bash

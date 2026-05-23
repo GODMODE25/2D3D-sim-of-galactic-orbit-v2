@@ -59,6 +59,7 @@ export class VisualEffects {
     this._createPlanetTrails();
     this._createLabels();
     this._createStarfield();
+    this._createMilkyWayBand();
   }
 
   _createSunTrail() {
@@ -66,7 +67,7 @@ export class VisualEffects {
     const geom = new THREE.BufferGeometry();
     // use preallocated buffer assigned in constructor
     geom.setAttribute('position', new THREE.BufferAttribute(t.positions, 3));
-    const mat = new THREE.LineBasicMaterial({ color: 0xffdd88, transparent: true, opacity: 0.8, linewidth: 3 });
+    const mat = new THREE.LineBasicMaterial({ color: 0xffdf8d, transparent: true, opacity: 0.92, linewidth: 3 });
     const line = new THREE.Line(geom, mat);
     line.frustumCulled = false;
     t.line = line;
@@ -79,7 +80,7 @@ export class VisualEffects {
       const geom = new THREE.BufferGeometry();
       geom.setAttribute('position', new THREE.BufferAttribute(trail.positions, 3));
       const color = this._planetOrbits[i].color || 0x00ccff;
-      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8, linewidth: 2 });
+      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.68, linewidth: 2 });
       const line = new THREE.Line(geom, mat);
       line.frustumCulled = false;
       line.visible = false;
@@ -123,21 +124,81 @@ export class VisualEffects {
   }
 
   _createStarfield() {
-    const starCount = 8000;
+    const starCount = 11000;
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(starCount * 3);
+    const colors = new Float32Array(starCount * 3);
+    const color = new THREE.Color();
     for (let i = 0; i < starCount; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(Math.random() * 2 - 1);
-      const radius = 5000;
+      const radius = 3800 + Math.random() * 2200;
       positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
       positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       positions[i * 3 + 2] = radius * Math.cos(phi);
+
+      const palette = Math.random();
+      if (palette < 0.55) color.setRGB(0.82, 0.9, 1);
+      else if (palette < 0.82) color.setRGB(1, 0.92, 0.76);
+      else color.setRGB(0.72, 0.82, 1);
+
+      const brightness = 0.45 + Math.random() * 0.55;
+      colors[i * 3] = color.r * brightness;
+      colors[i * 3 + 1] = color.g * brightness;
+      colors[i * 3 + 2] = color.b * brightness;
     }
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const material = new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: true, transparent: true, opacity: 0.8 });
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const material = new THREE.PointsMaterial({
+      size: 2.2,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.86,
+      vertexColors: true
+    });
     this._starfield = new THREE.Points(geometry, material);
     this._scene.add(this._starfield);
+  }
+
+  _createMilkyWayBand() {
+    const starCount = 5500;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(starCount * 3);
+    const colors = new Float32Array(starCount * 3);
+    const color = new THREE.Color();
+
+    for (let i = 0; i < starCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 2500 + Math.random() * 2600;
+      const height = (Math.random() - 0.5) * 280;
+
+      positions[i * 3] = Math.cos(angle) * radius;
+      positions[i * 3 + 1] = height + Math.sin(angle * 2.2) * 90;
+      positions[i * 3 + 2] = Math.sin(angle) * radius;
+
+      color.setRGB(0.42 + Math.random() * 0.28, 0.52 + Math.random() * 0.2, 0.78 + Math.random() * 0.18);
+      const brightness = 0.2 + Math.random() * 0.45;
+      colors[i * 3] = color.r * brightness;
+      colors[i * 3 + 1] = color.g * brightness;
+      colors[i * 3 + 2] = color.b * brightness;
+    }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 3.4,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.36,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    this._milkyWayBand = new THREE.Points(geometry, material);
+    this._milkyWayBand.rotation.z = THREE.MathUtils.degToRad(-16);
+    this._scene.add(this._milkyWayBand);
   }
 
   // Public API to toggle labels visibility
@@ -231,7 +292,7 @@ export class VisualEffects {
       const ly = units * 65;
       return `${ly.toFixed(0)} ly`;
     } else if (scale === 'au') {
-      return `${units.toFixed(2)} AU`;
+      return `${(units / 15).toFixed(2)} AU`;
     }
     return `${units.toFixed(2)}`;
   }
@@ -244,6 +305,9 @@ export class VisualEffects {
 
     const simTimeEl = document.getElementById('sim-time');
     if (simTimeEl) simTimeEl.textContent = `${elapsedMillionYears.toFixed(2)} million years`;
+
+    const miniTimeEl = document.getElementById('mini-time');
+    if (miniTimeEl) miniTimeEl.textContent = `${elapsedMillionYears.toFixed(2)} Myr`;
 
     const distSunSgr = document.getElementById('dist-sun-sgr');
     if (distSunSgr) distSunSgr.textContent = this._formatDistance(distances.sunToSgrA, 'ly');

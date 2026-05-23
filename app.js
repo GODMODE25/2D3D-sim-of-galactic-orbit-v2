@@ -1,267 +1,353 @@
 import * as THREE from 'three';
 import { initScene } from './src/scene.js';
 
-/**
- * Initialize the application
- */
 let sceneData = null;
-/**
- * Accessor for initialized scene data.
- * Note: `sceneData` will be `null` until `init()` has run and the scene is created.
- * Consumers should call `getSceneData()` only after `init()` has completed.
- */
+
 function getSceneData() {
-    return sceneData;
+  return sceneData;
 }
-function init() {
-    console.log('Three.js loaded successfully');
-    console.log('Three.js version:', THREE.REVISION);
 
-    // Initialize the scene module which sets up renderer, camera, objects and starts animation
-    sceneData = initScene();
+function formatScenePosition(object) {
+  const position = new THREE.Vector3();
+  object.getWorldPosition(position);
+  return `${position.x.toFixed(1)}, ${position.y.toFixed(1)}, ${position.z.toFixed(1)}`;
+}
 
-    // Infocard popup logic
-    const infocard = document.getElementById('infocard');
-    const infocardTitle = document.getElementById('infocard-title');
-    const infocardDescription = document.getElementById('infocard-description');
-    const infocardDetails = document.getElementById('infocard-details');
-    const infocardClose = document.getElementById('infocard-close');
+function formatDistance(units, scale) {
+  if (scale === 'au') return `${(units / 15).toFixed(2)} AU`;
+  if (scale === 'ly') return `${(units * 65).toFixed(0)} ly`;
+  return `${units.toFixed(1)} units`;
+}
 
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
+function clampInfoCard(card, x, y) {
+  const margin = 16;
+  const rect = card.getBoundingClientRect();
+  const left = Math.min(Math.max(x + 18, margin), window.innerWidth - rect.width - margin);
+  const top = Math.min(Math.max(y + 18, margin), window.innerHeight - rect.height - margin);
+  card.style.left = `${left}px`;
+  card.style.top = `${top}px`;
+}
 
-    let hoveredObject = null;
-    let pinnedObject = null;
+function initInfoCards() {
+  const infocard = document.getElementById('infocard');
+  const infocardTitle = document.getElementById('infocard-title');
+  const infocardDescription = document.getElementById('infocard-description');
+  const infocardDetails = document.getElementById('infocard-details');
+  const infocardClose = document.getElementById('infocard-close');
 
-    function showInfoCard(data, x, y) {
-        if (!data) {
-            hideInfoCard();
-            return;
-        }
-        infocardTitle.textContent = `${data.emoji} ${data.name}`;
-        infocardDescription.textContent = data.description;
-        
-        infocardDetails.innerHTML = '';
-        
-        const details = {
-            'Mass': data.mass,
-            'Diameter': data.diameter,
-            'Surface Temp.': data.surfaceTemperature,
-            'Orbital Period': data.orbitalPeriodYears ? `${data.orbitalPeriodYears} years` : undefined
-        };
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  let hoveredObject = null;
+  let pinnedObject = null;
 
-        for (const [key, value] of Object.entries(details)) {
-            if (value) {
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${key}:</strong> ${value}`;
-                infocardDetails.appendChild(li);
-            }
-        }
+  function appendDetail(label, value) {
+    if (!value) return;
+    const li = document.createElement('li');
+    const strong = document.createElement('strong');
+    strong.textContent = `${label}:`;
+    li.append(strong, ` ${value}`);
+    infocardDetails.appendChild(li);
+  }
 
-        infocard.style.left = `${x + 15}px`;
-        infocard.style.top = `${y + 15}px`;
-        infocard.classList.remove('hidden');
+  function showInfoCard(object, x, y) {
+    const data = object?.userData?.info;
+    if (!data) {
+      hideInfoCard();
+      return;
     }
 
-    function hideInfoCard() {
-        infocard.classList.add('hidden');
+    infocardTitle.textContent = `${data.emoji} ${data.name}`;
+    infocardDescription.textContent = data.description;
+    infocardDetails.textContent = '';
+
+    appendDetail('Mass', data.mass);
+    appendDetail('Diameter', data.diameter);
+    appendDetail('Surface Temp.', data.surfaceTemperature);
+    appendDetail('Orbital Period', data.orbitalPeriodYears ? `${data.orbitalPeriodYears} years` : undefined);
+    appendDetail('Scene Position', formatScenePosition(object));
+
+    if (sceneData?.sun && object !== sceneData.sun) {
+      const source = new THREE.Vector3();
+      const sun = new THREE.Vector3();
+      object.getWorldPosition(source);
+      sceneData.sun.getWorldPosition(sun);
+      appendDetail('Distance from Sun', formatDistance(source.distanceTo(sun), 'au'));
     }
 
-    function getIntersectedObject(event) {
-        // Ignore interactions on UI elements
-        if (event.target.closest('.dg.main, .control-panel, #infocard')) {
-            return null;
-        }
-
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-
-        raycaster.setFromCamera(mouse, sceneData.camera);
-
-        // Ensure all interactive objects are included
-        const interactiveObjects = [
-            sceneData.sun,
-            ...sceneData.planets,
-            sceneData.galacticOrbit.sagittariusA
-        ];
-        
-        const intersects = raycaster.intersectObjects(interactiveObjects, true);
-
-        if (intersects.length > 0) {
-            // Traverse up to find the group/mesh with userData.info
-            let obj = intersects[0].object;
-            while(obj && !obj.userData.info) {
-                obj = obj.parent;
-            }
-            return obj || null;
-        }
-        return null;
+    if (sceneData?.galacticOrbit?.sagittariusA && object !== sceneData.galacticOrbit.sagittariusA) {
+      const source = new THREE.Vector3();
+      const sgr = new THREE.Vector3();
+      object.getWorldPosition(source);
+      sceneData.galacticOrbit.sagittariusA.getWorldPosition(sgr);
+      appendDetail('Distance from Sgr A*', formatDistance(source.distanceTo(sgr), 'ly'));
     }
 
-    function handleMouseMove(event) {
-        const intersected = getIntersectedObject(event);
-        
-        if (pinnedObject) return; // Don't do hover logic if a card is pinned
+    infocard.classList.remove('hidden');
+    clampInfoCard(infocard, x, y);
+  }
 
-        if (intersected && intersected !== hoveredObject) {
-            hoveredObject = intersected;
-            showInfoCard(hoveredObject.userData.info, event.clientX, event.clientY);
-        } else if (!intersected && hoveredObject) {
-            hoveredObject = null;
-            hideInfoCard();
-        }
+  function hideInfoCard() {
+    infocard.classList.add('hidden');
+  }
+
+  function getIntersectedObject(event) {
+    if (event.target.closest('.hud, #info, #toggle-panel-btn, #minimal-telemetry, #infocard')) {
+      return null;
     }
 
-    function handleMouseClick(event) {
-        const intersected = getIntersectedObject(event);
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, sceneData.camera);
 
-        if (intersected) {
-            if (pinnedObject && pinnedObject === intersected) {
-                // Unpin if clicking the same object again
-                pinnedObject = null;
-                hideInfoCard();
-            } else {
-                // Pin new object
-                pinnedObject = intersected;
-                showInfoCard(pinnedObject.userData.info, event.clientX, event.clientY);
-            }
-        } else {
-            // Clicked away, so unpin and hide
-            pinnedObject = null;
-            hideInfoCard();
-        }
+    const interactiveObjects = [
+      sceneData.sun,
+      ...sceneData.planets,
+      sceneData.galacticOrbit.sagittariusA
+    ];
+
+    const intersects = raycaster.intersectObjects(interactiveObjects, true);
+    if (!intersects.length) return null;
+
+    let object = intersects[0].object;
+    while (object && !object.userData.info) object = object.parent;
+    return object || null;
+  }
+
+  window.addEventListener('mousemove', (event) => {
+    if (pinnedObject) return;
+    const intersected = getIntersectedObject(event);
+
+    if (intersected && intersected !== hoveredObject) {
+      hoveredObject = intersected;
+      showInfoCard(hoveredObject, event.clientX, event.clientY);
+    } else if (intersected && hoveredObject) {
+      clampInfoCard(infocard, event.clientX, event.clientY);
+    } else if (!intersected && hoveredObject) {
+      hoveredObject = null;
+      hideInfoCard();
     }
+  });
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('click', handleMouseClick);
+  window.addEventListener('click', (event) => {
+    const intersected = getIntersectedObject(event);
 
-    infocardClose.addEventListener('click', (e) => {
-        e.stopPropagation();
+    if (intersected) {
+      if (pinnedObject === intersected) {
         pinnedObject = null;
         hideInfoCard();
-    });
-
-
-        // --- NEW: Simplified UI interaction logic ---
-
-
-    
-
-
-        // Main toggle button for dat.gui panel
-
-
-        const togglePanelBtn = document.getElementById('toggle-panel-btn');
-
-
-        if (togglePanelBtn && sceneData.simulationControls) {
-
-
-            togglePanelBtn.addEventListener('click', () => {
-
-
-                sceneData.simulationControls.toggleGuiVisibility();
-
-
-            });
-
-
-        }
-
-
-    
-
-
-        // Autohide logic for dat.gui panel
-
-
-        if (sceneData.simulationControls) {
-
-
-            let autohideTimer = null;
-
-
-            const resetAutohideTimer = () => {
-
-
-                if (autohideTimer) clearTimeout(autohideTimer);
-
-
-                if (sceneData.simulationControls.isPanelAutohide() && !sceneData.simulationControls.isGuiHidden()) {
-
-
-                    autohideTimer = setTimeout(() => {
-
-
-                        sceneData.simulationControls.hideGui();
-
-
-                    }, sceneData.simulationControls.getPanelAutohideDelay());
-
-
-                }
-
-
-            };
-
-
-    
-
-
-            // Reset timer on general activity
-
-
-            window.addEventListener('mousemove', resetAutohideTimer, { passive: true });
-
-
-            window.addEventListener('click', resetAutohideTimer, { passive: true });
-
-
-            window.addEventListener('keydown', resetAutohideTimer, { passive: true });
-
-
-    
-
-
-                        // Initial call
-
-
-    
-
-
-                        resetAutohideTimer();
-
-
-        }
-
-
-    
-
-
-        // Update info panel with Three.js version
-
-
-        const versionSpan = document.getElementById('threejs-version');
-
-
-        if (versionSpan) {
-
-
-          versionSpan.textContent = THREE.REVISION;
-
-
-        }
-
-    console.log('Scene initialized');
+        return;
+      }
+      pinnedObject = intersected;
+      showInfoCard(pinnedObject, event.clientX, event.clientY);
+      return;
+    }
+
+    pinnedObject = null;
+    hideInfoCard();
+  });
+
+  infocardClose.addEventListener('click', (event) => {
+    event.stopPropagation();
+    pinnedObject = null;
+    hideInfoCard();
+  });
 }
 
-/**
- * Wait for DOM to be ready, then initialize
- */
-document.addEventListener('DOMContentLoaded', () => {
-    init();
-});
+function initHud() {
+  const controls = sceneData.simulationControls;
+  const body = document.body;
+  const hud = document.getElementById('hud');
+  const togglePanelBtn = document.getElementById('toggle-panel-btn');
+  const playPauseBtn = document.getElementById('play-pause-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const cinematicBtn = document.getElementById('cinematic-btn');
+  const speedSlider = document.getElementById('speed-slider');
+  const speedReadout = document.getElementById('speed-readout');
+  const cameraModeSelect = document.getElementById('camera-mode-select');
+  const targetSelect = document.getElementById('target-select');
+  const miniMode = document.getElementById('mini-mode');
+  const hudDelayInput = document.getElementById('hud-delay-input');
+  const cinematicDelayInput = document.getElementById('cinematic-delay-input');
 
-// Export for future modules/tests. Prefer `getSceneData()` to avoid reading
-// the exported `sceneData` before initialization.
+  const toggles = {
+    labelsVisible: document.getElementById('labels-toggle'),
+    planetTrailsVisible: document.getElementById('planet-trails-toggle'),
+    sunTrailVisible: document.getElementById('sun-trail-toggle'),
+    gridVisible: document.getElementById('grid-toggle'),
+    axesVisible: document.getElementById('axes-toggle')
+  };
+
+  for (const mode of controls.getCameraModes()) {
+    const option = document.createElement('option');
+    option.value = mode;
+    option.textContent = mode;
+    cameraModeSelect.appendChild(option);
+  }
+
+  for (const target of controls.getFollowTargets()) {
+    const option = document.createElement('option');
+    option.value = target;
+    option.textContent = target;
+    targetSelect.appendChild(option);
+  }
+
+  togglePanelBtn.addEventListener('click', () => {
+    if (controls.getState().cinematicMode) {
+      controls.setCinematicMode(false);
+      hud.classList.remove('hidden');
+      return;
+    }
+    hud.classList.toggle('hidden');
+  });
+
+  playPauseBtn.addEventListener('click', () => controls.togglePause());
+  resetBtn.addEventListener('click', () => controls.reset());
+  cinematicBtn.addEventListener('click', () => controls.toggleCinematicMode());
+  speedSlider.addEventListener('input', () => controls.setSpeed(speedSlider.value));
+  cameraModeSelect.addEventListener('change', () => controls.setCameraMode(cameraModeSelect.value));
+  targetSelect.addEventListener('change', () => controls.setFollowTarget(targetSelect.value));
+
+  for (const [key, element] of Object.entries(toggles)) {
+    element.addEventListener('change', () => controls.setVisibilitySetting(key, element.checked));
+  }
+
+  controls.onStateChange((state) => {
+    playPauseBtn.textContent = state.paused ? 'Play' : 'Pause';
+    speedSlider.value = String(state.speed);
+    speedReadout.textContent = `${state.speed.toFixed(2)}x`;
+    cameraModeSelect.value = state.activeCameraMode;
+    targetSelect.value = state.activeTarget;
+    miniMode.textContent = state.activeCameraMode;
+    body.classList.toggle('cinematic-mode', state.cinematicMode);
+
+    for (const [key, element] of Object.entries(toggles)) {
+      element.checked = Boolean(state[key]);
+    }
+  });
+
+  window.addEventListener('keydown', (event) => {
+    const launchMarquee = document.getElementById('launch-marquee');
+    if (launchMarquee && !launchMarquee.classList.contains('dismissed')) return;
+
+    const tagName = event.target?.tagName?.toLowerCase();
+    if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
+
+    if (event.code === 'Space') {
+      event.preventDefault();
+      controls.togglePause();
+    } else if (event.key.toLowerCase() === 'r') {
+      controls.reset();
+    } else if (event.key.toLowerCase() === 'h') {
+      hud.classList.toggle('hidden');
+    } else if (event.key.toLowerCase() === 'c' || event.key === 'Escape') {
+      controls.toggleCinematicMode();
+    } else if (event.key.toLowerCase() === 't') {
+      controls.toggleVisibilitySetting('planetTrailsVisible');
+    } else if (event.key.toLowerCase() === 'l') {
+      controls.toggleVisibilitySetting('labelsVisible');
+    } else if (/^[1-5]$/.test(event.key)) {
+      const mode = controls.getCameraModes()[Number(event.key) - 1];
+      if (mode) controls.setCameraMode(mode);
+    }
+  });
+
+  initInactivityAutomation({
+    controls,
+    hud,
+    hudDelayInput,
+    cinematicDelayInput
+  });
+}
+
+function initInactivityAutomation({ controls, hud, hudDelayInput, cinematicDelayInput }) {
+  let hudTimer = null;
+  let cinematicTimer = null;
+  let autoCinematicActive = false;
+
+  const getDelayMs = (input, fallbackSeconds) => {
+    const seconds = Number(input?.value);
+    if (!Number.isFinite(seconds) || seconds <= 0) return fallbackSeconds * 1000;
+    return seconds * 1000;
+  };
+
+  const clearTimers = () => {
+    if (hudTimer) clearTimeout(hudTimer);
+    if (cinematicTimer) clearTimeout(cinematicTimer);
+  };
+
+  const scheduleTimers = () => {
+    clearTimers();
+
+    hudTimer = setTimeout(() => {
+      hud.classList.add('hidden');
+    }, getDelayMs(hudDelayInput, 7));
+
+    cinematicTimer = setTimeout(() => {
+      autoCinematicActive = true;
+      controls.setCinematicMode(true);
+    }, getDelayMs(cinematicDelayInput, 10));
+  };
+
+  const handleActivity = (event) => {
+    hud.classList.remove('hidden');
+    if (autoCinematicActive) {
+      autoCinematicActive = false;
+      controls.setCinematicMode(false);
+    }
+    scheduleTimers();
+  };
+
+  for (const eventName of ['mousemove', 'mousedown', 'wheel', 'touchstart', 'keydown']) {
+    window.addEventListener(eventName, handleActivity, { passive: eventName !== 'keydown' });
+  }
+
+  hudDelayInput?.addEventListener('change', scheduleTimers);
+  cinematicDelayInput?.addEventListener('change', scheduleTimers);
+  scheduleTimers();
+}
+
+function initLaunchMarquee() {
+  const controls = sceneData.simulationControls;
+  const launchMarquee = document.getElementById('launch-marquee');
+  const launchBtn = document.getElementById('launch-btn');
+  const launchCinematicBtn = document.getElementById('launch-cinematic-btn');
+  const hud = document.getElementById('hud');
+
+  const start = ({ cinematic = false } = {}) => {
+    launchMarquee.classList.add('dismissed');
+    hud.classList.toggle('hidden', cinematic);
+    controls.setPaused(false);
+    controls.setCameraMode('Solar Chase');
+    controls.setCinematicMode(cinematic);
+  };
+
+  launchBtn.addEventListener('click', () => start());
+  launchCinematicBtn.addEventListener('click', () => start({ cinematic: true }));
+
+  window.addEventListener('keydown', (event) => {
+    if (launchMarquee.classList.contains('dismissed')) return;
+    if (event.key === 'Enter' || event.code === 'Space') {
+      event.preventDefault();
+      start();
+    }
+  });
+}
+
+function init() {
+  console.log('Three.js loaded successfully');
+  console.log('Three.js version:', THREE.REVISION);
+
+  sceneData = initScene();
+  initInfoCards();
+  initHud();
+  initLaunchMarquee();
+
+  const versionSpan = document.getElementById('threejs-version');
+  if (versionSpan) versionSpan.textContent = THREE.REVISION;
+
+  console.log('Scene initialized');
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
 export { init, getSceneData };
